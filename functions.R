@@ -83,7 +83,7 @@ ensemble.esn = function(y.train,
   {
     
     #####################################
-    #Simulating W and U weight matrices
+    #Simulating W and W^{in} weight matrices
     gam.w = rbernoulli(samp.w, p = pi.w) 
     gam.win = rbernoulli(samp.win, p = pi.win) 
     
