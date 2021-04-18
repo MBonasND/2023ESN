@@ -57,7 +57,7 @@ for(w in 1:n.w)
   #Create training and testing sets
   sets = cttv(rawData, tau, trainLen, forward)
   new.train = sets$yTrain
-  testindex = sets$xTestIndex[1]-1
+  testindex = sets$xTestIndex[1]-tau
   
   #Preallocate empty results matrix
   mean.pred = array(NaN, dim = c(locations, iterations, forward))
