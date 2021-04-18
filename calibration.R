@@ -10,6 +10,7 @@ rm(list = ls())
 library(tidyverse)
 library(Matrix)
 library(abind)
+library(scam)
 
 #load functions and data
 source('functions.R')
