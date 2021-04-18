@@ -1,0 +1,14 @@
+# 2021ESN
+Public codes for "Calibration of Spatial Long Lead Forecasts from Urban Air Pollution Monitoring Networks with Echo State Networks" by Matthew Bonas and Stefano Castruccio
+
+## Data
+Data folder contains a dataset "SimulatedData.RData" with 10 variables (locations) and 500 time points. This data is to be used in conjunction with the R scripts.
+
+## functions.R
+R script containing the user created functions used in both longrangeforecasting.R and calibration.R. This script does not need to be run manually for the other files automatically import the functions from this file.
+
+## longrangeforecasting.R
+R script containing code and methods used to generate long-range forecasts with the Echo State Network (ESN) using SimulatedData.RData. This script corresponds to the method outlined in Algorithm S1.
+
+## calibration.R
+R script containing the code and methods used to calibrate the forecasts from the ESN. This script corresponds to Algorithm 1. 
