@@ -105,7 +105,7 @@ for(w in 1:n.w)
                            polynomial = 1,
                            scale.factor = y.scale,
                            scale.matrix = addScaleMat,
-                           verbose = T)
+                           verbose = F)
     
     #Save predictions for each ensemble iteration
     mean.pred[,,f] = testing$predictions
