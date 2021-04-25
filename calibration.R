@@ -58,7 +58,7 @@ for(w in 1:n.w)
   #Create training and testing sets
   sets = cttv(rawData, tau, trainLen, forward)
   new.train = sets$yTrain
-  testindex = sets$xTestIndex[1]-tau
+  testindex = sets$xTestIndex[1]-1
   
   #Preallocate empty results matrix
   mean.pred = array(NaN, dim = c(locations, iterations, forward))
@@ -102,7 +102,7 @@ for(w in 1:n.w)
                            startvalues = NULL,
                            activation = 'tanh',
                            distribution = 'Normal',
-                           quad.flag = T,
+                           polynomial = 1,
                            scale.factor = y.scale,
                            scale.matrix = addScaleMat,
                            verbose = T)
@@ -127,7 +127,7 @@ for(w in 1:n.w)
 WindowForcs = WindowForcs[,,-1]
 
 ###################################################################
-### Determine Optimum SD Vector for each Location - Algorithm 1 ###
+### Determine Optimum SD Vector for Each Location - Algorithm 1 ###
 ###################################################################
 
 locations = 10

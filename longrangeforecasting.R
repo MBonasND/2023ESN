@@ -31,7 +31,7 @@ pi.w = 0.1
 eta.w = 0.1 #only needed if distribution = 'Unif'
 pi.win = 0.1
 eta.win = 0.1 #only needed if distribution = 'Unif'
-iterations = 100
+iterations = 30
 tau = 1
 trainLen = 400
 testLen = 1
@@ -87,7 +87,7 @@ for(f in 1:forward)
                           startvalues = NULL,
                           activation = 'tanh',
                           distribution = 'Normal',
-                          quad.flag = T,
+                          polynomial = 2,
                           scale.factor = y.scale,
                           scale.matrix = addScaleMat,
                           verbose = T)

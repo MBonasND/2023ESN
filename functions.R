@@ -33,7 +33,7 @@ ensemble.esn = function(y.train,
                         distribution = 'Normal',
                         scale.factor,
                         scale.matrix,
-                        quad.flag = TRUE,
+                        polynomial = 1,
                         verbose = TRUE)
 {  
   if(verbose)
@@ -83,7 +83,7 @@ ensemble.esn = function(y.train,
   {
     
     #####################################
-    #Simulating W and W^{in} weight matrices
+    #Simulating W and U weight matrices
     gam.w = rbernoulli(samp.w, p = pi.w) 
     gam.win = rbernoulli(samp.win, p = pi.win) 
     
@@ -112,11 +112,11 @@ ensemble.esn = function(y.train,
     lambda.w = max(abs(eigen(W)$values))
     
     #Set problem to quadratic 
-    if(quad.flag)
+    if(polynomial > 1)
     {
-      quad.ridge.dim = 2*n.h
+      quad.ridge.dim = polynomial*n.h
       h.prior = rep(0, quad.ridge.dim)
-      Ident.Mat = diag(2*n.h) 
+      Ident.Mat = diag(polynomial*n.h) 
       reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = cap.t)
       h.forc.prior = rep(0, quad.ridge.dim)
       forc.reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = future)
@@ -138,10 +138,19 @@ ensemble.esn = function(y.train,
       h.tild.t = g.h(omega)
       h.temp = (1-alpha) * h.prior[1:n.h] + alpha * h.tild.t
       h.prior[1:n.h] = h.temp
-      if(quad.flag)
+      if(polynomial == 2)
       {
         quad.ridge.dim = 2*n.h
         h.prior[(n.h+1):quad.ridge.dim] = h.temp^2
+      } else if(polynomial == 3)
+      {
+        h.prior[(n.h+1):(2*n.h)] = h.temp^2
+        h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+      } else if(polynomial == 4)
+      {
+        h.prior[(n.h+1):(2*n.h)] = h.temp^2
+        h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+        h.prior[(3*n.h+1):(4*n.h)] = h.temp^4
       }
       reservoir[,t] = h.prior
       t = t+1
@@ -161,10 +170,19 @@ ensemble.esn = function(y.train,
       h.tild.hat = g.h(omega.hat)
       h.hat.temp = (1-alpha) * h.forc.prior[1:n.h] + alpha * h.tild.hat
       h.forc.prior[1:n.h] = h.hat.temp
-      if(quad.flag)
+      if(polynomial == 2)
       {
         quad.ridge.dim = 2*n.h
         h.forc.prior[(n.h+1):quad.ridge.dim] = h.hat.temp^2
+      } else if(polynomial == 3)
+      {
+        h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+        h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+      } else if(polynomial == 4)
+      {
+        h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+        h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+        h.forc.prior[(3*n.h+1):(4*n.h)] = h.hat.temp^4
       }
       forc.reservoir[,f] = h.forc.prior
       f = f+1
