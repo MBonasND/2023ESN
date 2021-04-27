@@ -1,5 +1,5 @@
 # 2021ESN
-Public codes for "Calibration of Spatial Forecasts from Citizen Science Urban Air Pollution with Sparse Recurrent Neural Networks" by Matthew Bonas and Stefano Castruccio
+Public codes for "Calibration of Spatial Forecasts from Citizen Science Urban Air Pollution Data with Sparse Recurrent Neural Networks" by Matthew Bonas and Stefano Castruccio
 
 ## Data
 Dataset "SimulatedData.RData" with 10 variables (locations) and 500 time points. This data is to be used in conjunction with the R scripts.
