@@ -12,6 +12,11 @@ library(Matrix)
 library(abind)
 library(scam)
 
+#parallel libraries
+library(doParallel)
+library(parallel)
+library(foreach)
+
 #load functions and data
 source('functions.R')
 load('SimulatedData.RData')
@@ -48,6 +53,8 @@ WindowForcs = array(NaN, dim = c(locations, iterations, 1))
 
 
 #### code below can be computationally expensive - DO NOT RUN ####
+#### speed of code below can be increased by running parallel = T in ESN function ###
+#### parallel = T will run 'iter' variable in parallel across cores in the machine ###
 
 
 for(w in 1:n.w)
@@ -105,7 +112,8 @@ for(w in 1:n.w)
                            polynomial = 1,
                            scale.factor = y.scale,
                            scale.matrix = addScaleMat,
-                           verbose = F)
+                           verbose = T,
+                           parallel = F)
     
     #Save predictions for each ensemble iteration
     mean.pred[,,f] = testing$predictions

@@ -8,6 +8,13 @@
 rm(list = ls())
 library(tidyverse)
 library(Matrix)
+library(abind)
+
+
+#parallel libraries
+library(doParallel)
+library(parallel)
+library(foreach)
 
 #load functions and data
 source('functions.R')
@@ -31,7 +38,7 @@ pi.w = 0.1
 eta.w = 0.1 #only needed if distribution = 'Unif'
 pi.win = 0.1
 eta.win = 0.1 #only needed if distribution = 'Unif'
-iterations = 30
+iterations = 300
 tau = 1
 trainLen = 400
 testLen = 1
@@ -47,6 +54,7 @@ testindex = sets$xTestIndex[1]-1
 
 #Preallocate empty results matrix
 mean.pred = array(NaN, dim = c(locations, iterations, forward))
+
 
 
 #Begin future forecasts
@@ -87,10 +95,11 @@ for(f in 1:forward)
                           startvalues = NULL,
                           activation = 'tanh',
                           distribution = 'Normal',
-                          polynomial = 2,
+                          polynomial = 1,
                           scale.factor = y.scale,
                           scale.matrix = addScaleMat,
-                          verbose = T)
+                          verbose = T,
+                          parallel = F)
   
   #Save predictions for each ensemble iteration
   mean.pred[,,f] = testing$predictions
@@ -104,6 +113,7 @@ for(f in 1:forward)
   trainLen = trainLen + 1
   testindex = testindex + 1
   
+
 }
 
 #Forecast averages & MSE

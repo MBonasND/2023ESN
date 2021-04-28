@@ -34,11 +34,15 @@ ensemble.esn = function(y.train,
                         scale.factor,
                         scale.matrix,
                         polynomial = 1,
-                        verbose = TRUE)
+                        verbose = TRUE,
+                        parallel = FALSE)
 {  
-  if(verbose)
+  if(!parallel)
   {
-    prog.bar = txtProgressBar(min = 0, max = iter, style = 3)
+    if(verbose)
+    {
+      prog.bar = txtProgressBar(min = 0, max = iter, style = 3)
+    }
   }
   
   #Set conditions for iterations
@@ -79,138 +83,288 @@ ensemble.esn = function(y.train,
   ###########################
   #Begin ensemble iterations
   ###########################
-  for(k in 1:iter)
+  
+  if(!parallel)
   {
     
-    #####################################
-    #Simulating W and U weight matrices
-    gam.w = rbernoulli(samp.w, p = pi.w) 
-    gam.win = rbernoulli(samp.win, p = pi.win) 
-    
-    #Set W
-    if(distribution == 'Unif')
+    #Non-parallel iterations
+    for(k in 1:iter)
     {
-      unif.w = runif(samp.w, min = -eta.w, max = eta.w)
-      W = Matrix((gam.w == 1)*unif.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
-    } else if(distribution == 'Normal')
-    {
-      norm.w = rnorm(samp.w, 0, 1)
-      W = Matrix((gam.w == 1)*norm.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
-    }
-    
-    #Set W^in
-    if(distribution == 'Unif')
-    {
-      unif.win = runif(samp.win, min = -eta.win, max = eta.win)
-      WIN = Matrix((gam.win == 1)*unif.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
-    } else if(distribution == 'Normal')
-    {
-      norm.win = rnorm(samp.win, 0, 1)
-      WIN = Matrix((gam.win == 1)*norm.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
-    }
-    
-    lambda.w = max(abs(eigen(W)$values))
-    
-    #Set problem to quadratic 
-    if(polynomial > 1)
-    {
-      quad.ridge.dim = polynomial*n.h
-      h.prior = rep(0, quad.ridge.dim)
-      Ident.Mat = diag(polynomial*n.h) 
-      reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = cap.t)
-      h.forc.prior = rep(0, quad.ridge.dim)
-      forc.reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = future)
-    } else {
-      h.prior = rep(0, n.h)
-      Ident.Mat = diag(n.h)
-      reservoir = matrix(NaN, nrow = n.h, ncol = cap.t)
-      h.forc.prior = rep(0, n.h)
-      forc.reservoir = matrix(NaN, nrow = n.h, ncol = future)
-    }
-    h.prior[1:n.h] = startvalues
-    
-    #Generate hidden units for training
-    t = 1
-    while(t <=cap.t)
-    {
-      WIN.x.in.product  = tcrossprod(WIN, x.insamp)
-      omega = (nu/abs(lambda.w)) * W %*% h.prior[1:n.h] + WIN.x.in.product[,t] 
-      h.tild.t = g.h(omega)
-      h.temp = (1-alpha) * h.prior[1:n.h] + alpha * h.tild.t
-      h.prior[1:n.h] = h.temp
-      if(polynomial == 2)
+      
+      #####################################
+      #Simulating W and U weight matrices
+      gam.w = rbernoulli(samp.w, p = pi.w) 
+      gam.win = rbernoulli(samp.win, p = pi.win) 
+      
+      #Set W
+      if(distribution == 'Unif')
       {
-        quad.ridge.dim = 2*n.h
-        h.prior[(n.h+1):quad.ridge.dim] = h.temp^2
-      } else if(polynomial == 3)
+        unif.w = runif(samp.w, min = -eta.w, max = eta.w)
+        W = Matrix((gam.w == 1)*unif.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
+      } else if(distribution == 'Normal')
       {
-        h.prior[(n.h+1):(2*n.h)] = h.temp^2
-        h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
-      } else if(polynomial == 4)
-      {
-        h.prior[(n.h+1):(2*n.h)] = h.temp^2
-        h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
-        h.prior[(3*n.h+1):(4*n.h)] = h.temp^4
+        norm.w = rnorm(samp.w, 0, 1)
+        W = Matrix((gam.w == 1)*norm.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
       }
-      reservoir[,t] = h.prior
-      t = t+1
-    }
-    
-    #Estimating V weights using ridge regression
-    ridgeMat = lambda.r * Ident.Mat
-    V = t(y.train) %*% t(reservoir) %*% solve(tcrossprod(reservoir, reservoir) + ridgeMat)
-    
-    #Generating out-of-sample hidden units
-    f = 1
-    h.forc.prior[1:n.h] = reservoir[1:n.h,cap.t]
-    while(f <= future)
-    {
-      WIN.x.out.product  = tcrossprod(WIN, x.outsamp)
-      omega.hat = (nu/abs(lambda.w)) * W %*% h.forc.prior[1:n.h] + WIN.x.out.product[,f]
-      h.tild.hat = g.h(omega.hat)
-      h.hat.temp = (1-alpha) * h.forc.prior[1:n.h] + alpha * h.tild.hat
-      h.forc.prior[1:n.h] = h.hat.temp
-      if(polynomial == 2)
+      
+      #Set W^in
+      if(distribution == 'Unif')
       {
-        quad.ridge.dim = 2*n.h
-        h.forc.prior[(n.h+1):quad.ridge.dim] = h.hat.temp^2
-      } else if(polynomial == 3)
+        unif.win = runif(samp.win, min = -eta.win, max = eta.win)
+        WIN = Matrix((gam.win == 1)*unif.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
+      } else if(distribution == 'Normal')
       {
-        h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
-        h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
-      } else if(polynomial == 4)
-      {
-        h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
-        h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
-        h.forc.prior[(3*n.h+1):(4*n.h)] = h.hat.temp^4
+        norm.win = rnorm(samp.win, 0, 1)
+        WIN = Matrix((gam.win == 1)*norm.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
       }
-      forc.reservoir[,f] = h.forc.prior
-      f = f+1
+      
+      lambda.w = max(abs(eigen(W)$values))
+      
+      #Set problem to quadratic 
+      if(polynomial > 1)
+      {
+        quad.ridge.dim = polynomial*n.h
+        h.prior = rep(0, quad.ridge.dim)
+        Ident.Mat = diag(polynomial*n.h) 
+        reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = cap.t)
+        h.forc.prior = rep(0, quad.ridge.dim)
+        forc.reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = future)
+      } else {
+        h.prior = rep(0, n.h)
+        Ident.Mat = diag(n.h)
+        reservoir = matrix(NaN, nrow = n.h, ncol = cap.t)
+        h.forc.prior = rep(0, n.h)
+        forc.reservoir = matrix(NaN, nrow = n.h, ncol = future)
+      }
+      h.prior[1:n.h] = startvalues
+      
+      #Generate hidden units for training
+      t = 1
+      while(t <=cap.t)
+      {
+        WIN.x.in.product  = tcrossprod(WIN, x.insamp)
+        omega = (nu/abs(lambda.w)) * W %*% h.prior[1:n.h] + WIN.x.in.product[,t] 
+        h.tild.t = g.h(omega)
+        h.temp = (1-alpha) * h.prior[1:n.h] + alpha * h.tild.t
+        h.prior[1:n.h] = h.temp
+        if(polynomial == 2)
+        {
+          quad.ridge.dim = 2*n.h
+          h.prior[(n.h+1):quad.ridge.dim] = h.temp^2
+        } else if(polynomial == 3)
+        {
+          h.prior[(n.h+1):(2*n.h)] = h.temp^2
+          h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+        } else if(polynomial == 4)
+        {
+          h.prior[(n.h+1):(2*n.h)] = h.temp^2
+          h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+          h.prior[(3*n.h+1):(4*n.h)] = h.temp^4
+        }
+        reservoir[,t] = h.prior
+        t = t+1
+      }
+      
+      #Estimating V weights using ridge regression
+      ridgeMat = lambda.r * Ident.Mat
+      V = t(y.train) %*% t(reservoir) %*% solve(tcrossprod(reservoir, reservoir) + ridgeMat)
+      
+      #Generating out-of-sample hidden units
+      f = 1
+      h.forc.prior[1:n.h] = reservoir[1:n.h,cap.t]
+      while(f <= future)
+      {
+        WIN.x.out.product  = tcrossprod(WIN, x.outsamp)
+        omega.hat = (nu/abs(lambda.w)) * W %*% h.forc.prior[1:n.h] + WIN.x.out.product[,f]
+        h.tild.hat = g.h(omega.hat)
+        h.hat.temp = (1-alpha) * h.forc.prior[1:n.h] + alpha * h.tild.hat
+        h.forc.prior[1:n.h] = h.hat.temp
+        if(polynomial == 2)
+        {
+          quad.ridge.dim = 2*n.h
+          h.forc.prior[(n.h+1):quad.ridge.dim] = h.hat.temp^2
+        } else if(polynomial == 3)
+        {
+          h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+          h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+        } else if(polynomial == 4)
+        {
+          h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+          h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+          h.forc.prior[(3*n.h+1):(4*n.h)] = h.hat.temp^4
+        }
+        forc.reservoir[,f] = h.forc.prior
+        f = f+1
+      }
+      
+      #Produce forecasts using coefficient matrix V and forc.reservoir
+      ensemb.mat[,,k] = (scale.factor * (V %*% forc.reservoir)) + scale.matrix
+      
+      if(verbose)
+      {
+        setTxtProgressBar(prog.bar, k)
+      }
     }
     
-    #Produce forecasts using coefficient matrix V and forc.reservoir
-    ensemb.mat[,,k] = (scale.factor * (V %*% forc.reservoir)) + scale.matrix
     
-    if(verbose)
-    {
-      setTxtProgressBar(prog.bar, k)
-    }
+  } else if(parallel) {
+    
+    
+    #Parallel Iterations
+    
+    #Specify number of clusters
+    cl <- parallel::makeCluster(detectCores())
+    
+    # Activate cluster for foreach library
+    doParallel::registerDoParallel(cl)
+    
+    
+    ensemb.mat = foreach::foreach(k = 1:iter,
+                                  .combine = abind,
+                                  .inorder = FALSE) %dopar%
+      {
+        
+        #####################################
+        #Simulating W and U weight matrices
+        gam.w = purrr::rbernoulli(samp.w, p = pi.w) 
+        gam.win = purrr::rbernoulli(samp.win, p = pi.win) 
+        
+        #Set W
+        if(distribution == 'Unif')
+        {
+          unif.w = runif(samp.w, min = -eta.w, max = eta.w)
+          W = Matrix::Matrix((gam.w == 1)*unif.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
+        } else if(distribution == 'Normal')
+        {
+          norm.w = rnorm(samp.w, 0, 1)
+          W = Matrix::Matrix((gam.w == 1)*norm.w + (gam.w == 0)*0, nrow = n.h, ncol = n.h, sparse = T)
+        }
+        
+        #Set W^in
+        if(distribution == 'Unif')
+        {
+          unif.win = runif(samp.win, min = -eta.win, max = eta.win)
+          WIN = Matrix::Matrix((gam.win == 1)*unif.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
+        } else if(distribution == 'Normal')
+        {
+          norm.win = rnorm(samp.win, 0, 1)
+          WIN = Matrix::Matrix((gam.win == 1)*norm.win + (gam.win == 0)*0, nrow = n.h, ncol = n.x, sparse = T)
+        }
+        
+        lambda.w = max(abs(eigen(W)$values))
+        
+        #Set problem to quadratic 
+        if(polynomial > 1)
+        {
+          quad.ridge.dim = polynomial*n.h
+          h.prior = rep(0, quad.ridge.dim)
+          Ident.Mat = diag(polynomial*n.h) 
+          reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = cap.t)
+          h.forc.prior = rep(0, quad.ridge.dim)
+          forc.reservoir = matrix(NaN, nrow = quad.ridge.dim, ncol = future)
+        } else {
+          h.prior = rep(0, n.h)
+          Ident.Mat = diag(n.h)
+          reservoir = matrix(NaN, nrow = n.h, ncol = cap.t)
+          h.forc.prior = rep(0, n.h)
+          forc.reservoir = matrix(NaN, nrow = n.h, ncol = future)
+        }
+        h.prior[1:n.h] = startvalues
+        
+        #Generate hidden units for training
+        t = 1
+        while(t <=cap.t)
+        {
+          WIN.x.in.product  = Matrix::tcrossprod(WIN, x.insamp)
+          omega = (nu/abs(lambda.w)) * W %*% h.prior[1:n.h] + WIN.x.in.product[,t] 
+          h.tild.t = g.h(omega)
+          h.temp = (1-alpha) * h.prior[1:n.h] + alpha * h.tild.t
+          h.prior[1:n.h] = h.temp
+          if(polynomial == 2)
+          {
+            quad.ridge.dim = 2*n.h
+            h.prior[(n.h+1):quad.ridge.dim] = h.temp^2
+          } else if(polynomial == 3)
+          {
+            h.prior[(n.h+1):(2*n.h)] = h.temp^2
+            h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+          } else if(polynomial == 4)
+          {
+            h.prior[(n.h+1):(2*n.h)] = h.temp^2
+            h.prior[(2*n.h+1):(3*n.h)] = h.temp^3
+            h.prior[(3*n.h+1):(4*n.h)] = h.temp^4
+          }
+          reservoir[,t] = h.prior
+          t = t+1
+        }
+        
+        #Estimating V weights using ridge regression
+        ridgeMat = lambda.r * Ident.Mat
+        V = t(y.train) %*% t(reservoir) %*% solve(Matrix::tcrossprod(reservoir, reservoir) + ridgeMat)
+        
+        #Generating out-of-sample hidden units
+        f = 1
+        h.forc.prior[1:n.h] = reservoir[1:n.h,cap.t]
+        while(f <= future)
+        {
+          WIN.x.out.product  = Matrix::tcrossprod(WIN, x.outsamp)
+          omega.hat = (nu/abs(lambda.w)) * W %*% h.forc.prior[1:n.h] + WIN.x.out.product[,f]
+          h.tild.hat = g.h(omega.hat)
+          h.hat.temp = (1-alpha) * h.forc.prior[1:n.h] + alpha * h.tild.hat
+          h.forc.prior[1:n.h] = h.hat.temp
+          if(polynomial == 2)
+          {
+            quad.ridge.dim = 2*n.h
+            h.forc.prior[(n.h+1):quad.ridge.dim] = h.hat.temp^2
+          } else if(polynomial == 3)
+          {
+            h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+            h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+          } else if(polynomial == 4)
+          {
+            h.forc.prior[(n.h+1):(2*n.h)] = h.hat.temp^2
+            h.forc.prior[(2*n.h+1):(3*n.h)] = h.hat.temp^3
+            h.forc.prior[(3*n.h+1):(4*n.h)] = h.hat.temp^4
+          }
+          forc.reservoir[,f] = h.forc.prior
+          f = f+1
+        }
+        
+        #Produce forecasts using coefficient matrix V and forc.reservoir
+        (scale.factor * (V %*% forc.reservoir)) + scale.matrix
+      }
+    
   }
   
-  #Close progress bar
-  if(verbose)
+  #Close progress bar or clusters
+  if(!parallel)
   {
-    close(prog.bar)
+    if(verbose)
+    {
+      close(prog.bar)
+    }
+  } else if(parallel) {
+    parallel::stopCluster(cl)
   }
   
   #Calculate forecast mean
-  if (future > 1)
+  if(!parallel)
   {
-    forc.mean = sapply(1:locations, function(n) rowMeans(ensemb.mat[n,,]))
-  } else if(locations > 1) {
-    forc.mean = apply(ensemb.mat[,1,], 1, mean)
-  } else {
-    forc.mean = mean(ensemb.mat[1,1,])
+    if(future > 1)
+    {
+      forc.mean = sapply(1:locations, function(n) rowMeans(ensemb.mat[n,,]))
+    } else if(locations > 1) {
+      forc.mean = apply(ensemb.mat[,1,], 1, mean)
+    } else {
+      forc.mean = mean(ensemb.mat[1,1,])
+    }
+  } else if(parallel) {
+    if(locations > 1)
+    {
+      forc.mean = apply(ensemb.mat, 1, mean)
+    } else {
+      forc.mean = mean(ensemb.mat)
+    }
   }
   
   #Calculate MSE
@@ -221,16 +375,25 @@ ensemble.esn = function(y.train,
     MSE = NULL
   }
   
+  #Set parallel output items
+  if(parallel)
+  {
+    V = NULL
+    reservoir = NULL
+    forc.reservoir = NULL
+  }
+  
   #Compile results
   esn.output = list('predictions' = ensemb.mat,
-                     'forecastmean' = forc.mean,
-                     'y.test' = y.test,
-                     'MSE' = MSE,
-                     'coefficients' = V,
-                     'finalreservoir' = reservoir,
-                     'finalforecastreservoir' = forc.reservoir)
+                    'forecastmean' = forc.mean,
+                    'y.test' = y.test,
+                    'MSE' = MSE,
+                    'coefficients' = V,
+                    'finalreservoir' = reservoir,
+                    'finalforecastreservoir' = forc.reservoir)
   return(esn.output)
 }
+
 
 
 
@@ -346,5 +509,6 @@ cttv = function(rawData, tau, trainLen, testLen, validLen = NULL, valid.flag = F
                 'xValTestIndex' = xValTestIndex)
   return(output)
 }
+
 
 
