@@ -21,6 +21,9 @@ library(foreach)
 source('functions.R')
 load('SimulatedData.RData')
 
+#specify cores for parallel
+#options(cores = 4)
+
 
 ########################################
 ### 'Windows' Long-Range Forecasting ###

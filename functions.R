@@ -213,7 +213,7 @@ ensemble.esn = function(y.train,
     #Parallel Iterations
     
     #Specify number of clusters
-    cl <- parallel::makeCluster(detectCores())
+    cl <- parallel::makeCluster(getOption('cores'))
     
     # Activate cluster for foreach library
     doParallel::registerDoParallel(cl)
