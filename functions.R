@@ -35,7 +35,8 @@ ensemble.esn = function(y.train,
                         scale.matrix,
                         polynomial = 1,
                         verbose = TRUE,
-                        parallel = FALSE)
+                        parallel = FALSE,
+                        fork = FALSE)
 {  
   if(!parallel)
   {
@@ -213,7 +214,12 @@ ensemble.esn = function(y.train,
     #Parallel Iterations
     
     #Specify number of clusters
-    cl <- parallel::makeCluster(getOption('cores'))
+    if(fork)
+    {
+      cl <- parallel::makeForkCluster(getOption('cores'))
+    } else if(!fork) {
+      cl <- parallel::makeCluster(getOption('cores'))
+    }
     
     # Activate cluster for foreach library
     doParallel::registerDoParallel(cl)
