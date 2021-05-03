@@ -41,7 +41,7 @@ pi.w = 0.1
 eta.w = 0.1 #only needed if distribution = 'Unif'
 pi.win = 0.1
 eta.win = 0.1 #only needed if distribution = 'Unif'
-iterations = 300
+iterations = 100
 tau = 1
 trainLen = 400
 testLen = 1
