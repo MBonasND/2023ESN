@@ -31,9 +31,9 @@ load('SimulatedData.RData')
 
 #Parameter specification
 #User should perform a CV to determine parameter values
-n.h = 120
-nu = 0.75
-lambda.r = 0.01
+n.h = 60
+nu = 0.55
+lambda.r = 0.001
 m = 4
 alpha = 0.0023
 

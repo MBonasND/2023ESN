@@ -21,7 +21,7 @@ source('functions.R')
 load('SimulatedData.RData')
 
 #specify cores for parallel
-#options(cores = 4)
+options(cores = 4)
 
 
 ##############################
@@ -30,9 +30,9 @@ load('SimulatedData.RData')
 
 #Parameter specification
 #User should perform a CV to determine parameter values
-n.h = 120
-nu = 0.75
-lambda.r = 0.01
+n.h = 60
+nu = 0.55
+lambda.r = 0.001
 m = 4
 alpha = 0.0023
 
@@ -57,7 +57,6 @@ testindex = sets$xTestIndex[1]-1
 
 #Preallocate empty results matrix
 mean.pred = array(NaN, dim = c(locations, iterations, forward))
-
 
 
 #Begin future forecasts
@@ -101,8 +100,8 @@ for(f in 1:forward)
                           polynomial = 1,
                           scale.factor = y.scale,
                           scale.matrix = addScaleMat,
-                          verbose = T,
-                          parallel = F)
+                          verbose = F,
+                          parallel = T)
   
   #Save predictions for each ensemble iteration
   mean.pred[,,f] = testing$predictions
@@ -116,8 +115,10 @@ for(f in 1:forward)
   trainLen = trainLen + 1
   testindex = testindex + 1
   
-
+  #print progress
+  print(f)
 }
+
 
 #Forecast averages & MSE
 forc.mean = t(sapply(1:locations, function(x) colMeans(mean.pred[x,,])))
