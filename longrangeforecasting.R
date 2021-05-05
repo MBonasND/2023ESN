@@ -100,8 +100,8 @@ for(f in 1:forward)
                           polynomial = 1,
                           scale.factor = y.scale,
                           scale.matrix = addScaleMat,
-                          verbose = F,
-                          parallel = T)
+                          verbose = T,
+                          parallel = F)
   
   #Save predictions for each ensemble iteration
   mean.pred[,,f] = testing$predictions
@@ -116,7 +116,7 @@ for(f in 1:forward)
   testindex = testindex + 1
   
   #print progress
-  print(f)
+  #print(f)
 }
 
 
