@@ -8,7 +8,7 @@
 library(tidyverse)
 library(Matrix)
 
-
+set.seed(NULL)
 ##########################
 ### Echo State Network ###
 ##########################
@@ -212,7 +212,7 @@ ensemble.esn = function(y.train,
     
     
     #Parallel Iterations
-    
+    set.seed(NULL)
     #Specify number of clusters
     if(fork)
     {
@@ -229,7 +229,7 @@ ensemble.esn = function(y.train,
                                   .combine = abind,
                                   .inorder = FALSE) %dopar%
       {
-        
+        set.seed(NULL)
         #####################################
         #Simulating W and U weight matrices
         gam.w = purrr::rbernoulli(samp.w, p = pi.w) 
@@ -365,11 +365,17 @@ ensemble.esn = function(y.train,
       forc.mean = mean(ensemb.mat[1,1,])
     }
   } else if(parallel) {
-    if(locations > 1)
+    if(locations > 1 & future == 1)
     {
       forc.mean = apply(ensemb.mat, 1, mean)
+    } else if(locations == 1 & future > 1){
+      forc.mean = (sapply(1:future, function(x) mean(ensemb.mat[,seq(x, ncol(ensemb.mat), future)])))
+    } else if(locations > 1 & future > 1) {
+      forc.mean = t(sapply(1:future, function(x) rowMeans(ensemb.mat[,seq(x, ncol(ensemb.mat), future)])))
+    } else if(locations == 1 & future == 1) {
+      forc.mean = mean(as.numeric(ensemb.mat))
     } else {
-      forc.mean = mean(ensemb.mat)
+      forc.mean = NULL
     }
   }
   
