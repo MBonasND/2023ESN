@@ -68,7 +68,8 @@ for(w in 1:n.w)
   #Create training and testing sets
   sets = cttv(rawData, tau, trainLen, forward)
   new.train = sets$yTrain
-  testindex = sets$xTestIndex[1]-1
+  testindex = sets$xTestIndex[1]
+  newRaw = rawData[1:testindex,]
   
   #Preallocate empty results matrix
   mean.pred = array(NaN, dim = c(locations, iterations, forward))
@@ -82,7 +83,7 @@ for(w in 1:n.w)
                                m = m,
                                tau = tau,
                                yTrain = new.train,
-                               rawData = new.train,
+                               rawData = newRaw,
                                locations = locations,
                                xTestIndex = testindex,
                                testLen = testLen)
@@ -125,6 +126,7 @@ for(w in 1:n.w)
     
     #Append mean of ensembles to training data
     new.train = rbind(new.train, testing$forecastmean)
+    newRaw = rbind(newRaw, testing$forecastmean)
     
     #Update all values for next future point
     trainLen = trainLen + 1
