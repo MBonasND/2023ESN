@@ -30,36 +30,36 @@ load('SimulatedData.RData')
 ########################################
 
 #Parameter specification
-#User should perform a CV to determine parameter values
-n.h = 60
-nu = 0.55
-lambda.r = 0.001
+#User should perform a CV to determine hyper-parameter values
+first.n.h = 150
+last.n.h = 40
+nu = c(0.4,1.0,1.0)
+lambda.r = 0.1
 m = 4
-alpha = 0.0023
+alpha = 0.49
+reduced.units = 10
 
 #Fixed parameters
-pi.w = 0.1
-eta.w = 0.1 #only needed if distribution = 'Unif'
-pi.win = 0.1
-eta.win = 0.1 #only needed if distribution = 'Unif'
-tau = 1
-start.range = 360
-testLen = 1
-future = 1
-forward = 10
+tau = 30 #this should be the same as testLen
+layers = 3
+pi.w = rep(0.1, layers)
+pi.win = rep(0.1, layers)
+eta.w = rep(0.1, layers)
+eta.win = rep(0.1, layers)
+start.range = 200
+testLen = 30
+forward = 30
 locations = 10
-iterations = 100
+iterations = 300
 rawData = sim.dat
 
 n.w = 5 #user specified number of 'windows'
-WindowForcs = array(NaN, dim = c(locations, iterations, 1))
+WindowForcs = array(NaN, dim = c(locations, 1, iterations))
 
 
-#### code below can be computationally expensive - DO NOT RUN ####
-#### speed of code below can be increased by running parallel = T in ESN function ###
-#### parallel = T will run 'iter' variable in parallel across cores in the machine ###
 
 
+#Forecast windows
 for(w in 1:n.w)
 {
   
@@ -67,77 +67,67 @@ for(w in 1:n.w)
   
   #Create training and testing sets
   sets = cttv(rawData, tau, trainLen, forward)
-  new.train = sets$yTrain
-  testindex = sets$xTestIndex[1]
-  newRaw = rawData[1:testindex,]
   
-  #Preallocate empty results matrix
-  mean.pred = array(NaN, dim = c(locations, iterations, forward))
+  #Generating input data
+  input.dat = gen.input.data(trainLen = trainLen,
+                             m = m,
+                             tau = tau,
+                             yTrain = sets$yTrain,
+                             rawData = rawData,
+                             locations = locations,
+                             xTestIndex = sets$xTestIndex,
+                             testLen = testLen)
+  y.scale = input.dat$y.scale
+  y.train = input.dat$in.sample.y
+  designMatrix = input.dat$designMatrix
+  designMatrixOutSample = input.dat$designMatrixOutSample
+  addScaleMat = input.dat$addScaleMat
   
   
-  #Begin future forecasts
-  for(f in 1:forward)
-  {
-    #Generating input data
-    input.dat = gen.input.data(trainLen = trainLen,
-                               m = m,
-                               tau = tau,
-                               yTrain = new.train,
-                               rawData = newRaw,
-                               locations = locations,
-                               xTestIndex = testindex,
-                               testLen = testLen)
-    y.scale = input.dat$y.scale
-    y.train = input.dat$in.sample.y
-    designMatrix = input.dat$designMatrix
-    designMatrixOutSample = input.dat$designMatrixOutSample
-    addScaleMat = input.dat$addScaleMat
-    
-    
-    #Begin ESN forecasting
-    testing = ensemble.esn(y.train = y.train,
-                           x.insamp = designMatrix,
-                           x.outsamp = designMatrixOutSample,
-                           y.test =  NULL,
-                           n.h = n.h,
-                           nu = nu,
-                           pi.w = pi.w,
-                           pi.win = pi.win,
-                           eta.w = eta.w,
-                           eta.win = eta.win,
-                           lambda.r = lambda.r,
-                           alpha = alpha,
-                           m = m,
-                           iter = iterations,
-                           future = future,
-                           startvalues = NULL,
-                           activation = 'tanh',
-                           distribution = 'Normal',
-                           polynomial = 1,
-                           scale.factor = y.scale,
-                           scale.matrix = addScaleMat,
-                           verbose = T,
-                           parallel = F)
-    
-    #Save predictions for each ensemble iteration
-    mean.pred[,,f] = testing$predictions
-    
-    
-    
-    #Append mean of ensembles to training data
-    new.train = rbind(new.train, testing$forecastmean)
-    newRaw = rbind(newRaw, testing$forecastmean)
-    
-    #Update all values for next future point
-    trainLen = trainLen + 1
-    testindex = testindex + 1
-    
-  }
+  n.h = c(rep(first.n.h, layers-1), last.n.h)
   
-  WindowForcs = abind(WindowForcs, mean.pred, along = 3)
+  #Begin DESN forecasting
+  testing = deep.esn(y.train = y.train,
+                     x.insamp = designMatrix,
+                     x.outsamp = designMatrixOutSample,
+                     y.test = sets$yTest,
+                     n.h = n.h,
+                     nu = nu,
+                     pi.w = pi.w, 
+                     pi.win = pi.win,
+                     eta.w = eta.w,
+                     eta.win = eta.win,
+                     lambda.r = lambda.r,
+                     alpha = alpha,
+                     m = m,
+                     iter = iterations,
+                     future = testLen,
+                     layers = layers,
+                     reduced.units = reduced.units,
+                     startvalues = NULL,
+                     activation = 'tanh',
+                     distribution = 'Normal',
+                     scale.factor = y.scale,
+                     scale.matrix = addScaleMat,
+                     logNorm = FALSE,
+                     fork = FALSE,
+                     parallel = FALSE,
+                     verbose = TRUE)
+  
+  #plot best forecasts
+  # best.loc = which.min(apply((sets$yTest - testing$forecastmean)^2, 2, mean))
+  # plot(sets$yTest[,best.loc], type = 'l',
+  #      ylab = '',
+  #      xlab = '',
+  #      main = paste('Location:', best.loc))
+  # lines(testing$forecastmean[,best.loc], col = 'red')
+  
+
+  WindowForcs = abind(WindowForcs, testing$predictions, along = 2)
+  #print(w)
   
 }
-WindowForcs = WindowForcs[,,-1]
+WindowForcs = WindowForcs[,-1,]
 
 ###################################################################
 ### Determine Optimum SD Vector for Each Location - Algorithm 1 ###
@@ -146,18 +136,18 @@ WindowForcs = WindowForcs[,,-1]
 locations = 10
 n.w = 5
 rawData = sim.dat
-tau = 1
-start.range = 360
-horizon = 10
+tau = 30
+start.range = 200
+horizon = 30
 true.range = (start.range + tau + 1):(start.range + n.w*horizon + tau)
 
-optim.sd.mat = matrix(NaN, nrow = locations, ncol = horizon) #
+optim.sd.mat = matrix(NaN, nrow = locations, ncol = horizon)
 for(l in 1:locations)
 {
   location = l
   dat = WindowForcs[location,,]
   true.y = rawData[true.range, location]
-  means = apply(dat, 2, mean)
+  means = apply(dat, 1, mean)
   
   #Generate data windows for j-step ahead forecasts
   true.window = list()
@@ -166,7 +156,7 @@ for(l in 1:locations)
   {
     index = seq(i, (n.w-1)*horizon+i, horizon)
     true.window[[i]] = true.y[index]
-    mean.window[[i]] = apply(dat[,index], 2, mean)
+    mean.window[[i]] = apply(dat[index,], 1, mean)
   }
   
   
@@ -190,3 +180,4 @@ for(l in 1:locations)
   #set optimimum values from monotonic spline
   optim.sd.mat[l,] = fit$fitted.values
 }
+
