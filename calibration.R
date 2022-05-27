@@ -5,7 +5,7 @@
 ###########################################
 
 
-#clear enviroment and load libraries
+#clear environment and load libraries
 rm(list = ls())
 library(tidyverse)
 library(Matrix)
@@ -23,6 +23,15 @@ load('SimulatedData.RData')
 
 #specify cores for parallel
 #options(cores = 4)
+
+
+
+### In the example below we generate 5 windows of forecasts for data 
+### with 10 locations (vector elements) for a time horizon of 30 time points.
+### Using the forecast windows, it creates a final output of a 10x30
+### (locations x horizon) matrix of optimal standard deviation values
+### to be used to quantify the uncertainty of future forecasts
+
 
 
 ########################################
@@ -46,9 +55,8 @@ pi.w = rep(0.1, layers)
 pi.win = rep(0.1, layers)
 eta.w = rep(0.1, layers)
 eta.win = rep(0.1, layers)
-start.range = 200
+start.range = 200 #trainLen of first window forecasts
 testLen = 30
-forward = 30
 locations = 10
 iterations = 300
 rawData = sim.dat
@@ -57,16 +65,14 @@ n.w = 5 #user specified number of 'windows'
 WindowForcs = array(NaN, dim = c(locations, 1, iterations))
 
 
-
-
-#Forecast windows
+#Begin Forecasting Windows
 for(w in 1:n.w)
 {
   
-  trainLen = (w-1)*forward + start.range
+  trainLen = (w-1)*testLen + start.range
   
   #Create training and testing sets
-  sets = cttv(rawData, tau, trainLen, forward)
+  sets = cttv(rawData, tau, trainLen, testLen)
   
   #Generating input data
   input.dat = gen.input.data(trainLen = trainLen,
@@ -85,7 +91,6 @@ for(w in 1:n.w)
   
   
   n.h = c(rep(first.n.h, layers-1), last.n.h)
-  
   #Begin DESN forecasting
   testing = deep.esn(y.train = y.train,
                      x.insamp = designMatrix,
@@ -116,12 +121,16 @@ for(w in 1:n.w)
   
   #plot best forecasts
   # best.loc = which.min(apply((sets$yTest - testing$forecastmean)^2, 2, mean))
-  # plot(sets$yTest[,best.loc], type = 'l',
+  # plot(sets$yTest[,best.loc], type = 'l', lwd = 2,
   #      ylab = '',
   #      xlab = '',
   #      main = paste('Location:', best.loc))
-  # lines(testing$forecastmean[,best.loc], col = 'red')
-  
+  # lines(testing$forecastmean[,best.loc], col = 'red', lty = 2, lwd = 2)
+  # legend('bottomleft',
+  #        legend = c('True Value', 'Mean Forecast'),
+  #        col = c('black', 'red'),
+  #        lty = c(1,2), lwd = 2, seg.len = 3)
+
 
   WindowForcs = abind(WindowForcs, testing$predictions, along = 2)
   #print(w)
@@ -142,6 +151,7 @@ horizon = 30
 true.range = (start.range + tau + 1):(start.range + n.w*horizon + tau)
 
 optim.sd.mat = matrix(NaN, nrow = locations, ncol = horizon)
+#Get optimal sd for each location
 for(l in 1:locations)
 {
   location = l
@@ -159,11 +169,8 @@ for(l in 1:locations)
     mean.window[[i]] = apply(dat[index,], 1, mean)
   }
   
-  
-  ######################################
+
   ### Optimal SD w/ Monotonic Spline ###
-  ######################################
-  
   #Generate optimal SD
   optim.sd = rep(0, horizon)
   for(i in 1:horizon)
@@ -177,7 +184,7 @@ for(l in 1:locations)
   fit = scam(testy~s(testx, k=-1, bs="mpi"), 
              family=gaussian(link="identity"))
   
-  #set optimimum values from monotonic spline
+  #set optimum values from monotonic spline
   optim.sd.mat[l,] = fit$fitted.values
 }
 
